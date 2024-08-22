@@ -29,14 +29,15 @@ from selenium.webdriver.chrome.options import Options  # Use options to configur
 import time
 
 # Configuration
-TRAVIAN_URL = "https://www.travian.com/international"
+TRAVIAN_URL = "https://www.travian.com/international#loginLobby"
 USERNAME = "hddgeggtgbfpnnwgdg@ytnhy.com"  # Replace with your username
 PASSWORD = "notgonasayit2@"  # Replace with your password
 OASIS_COORDINATES = (12, 34)  # Example coordinates of the oasis
 
 # Set up Chrome options (optional: can configure headless mode or other settings)
 chrome_options = Options()
-chrome_options.add_argument("--start-maximized")  # Open Chrome maximized
+# chrome_options.add_argument("--start-maximized")  # Open Chrome maximized
+chrome_options.add_argument("--disable-search-engine-choice-screen")  # We don't need to search anything
 # chrome_options.add_argument("--disable-extensions")  # Disable extensions for clean run
 
 # Use ChromeDriverManager to automatically manage ChromeDriver and create a Service object
@@ -50,15 +51,16 @@ def login(username, password):
     driver.get(TRAVIAN_URL)
 
     # Step 1: Click the button to go to the login page (button identified by XPath)
-    login_button = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.XPATH, '//*[@id="login"]'))
-    )
-    login_button.click()
+    # login_button = WebDriverWait(driver, 10).until(
+    #     EC.element_to_be_clickable((By.XPATH, '//*[@id="login"]'))
+    # )
+    # login_button.click()
 
     # Step 2: Wait for the login form to become visible
-    WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.XPATH, '//*[@id="loginLobby"]/div/div/div/div[2]/form/div/label[1]/input'))
-    )
+    # WebDriverWait(driver, 10).until(
+    #     EC.presence_of_element_located((By.XPATH, '//*[@id="loginLobby"]/div/div/div/div[2]/form/div/label[1]/input'))
+    # )
+    time.sleep(2)
 
     # Step 3: Enter username using the provided XPath
     username_field = driver.find_element(By.XPATH, '//*[@id="loginLobby"]/div/div/div/div[2]/form/div/label[1]/input')
@@ -77,38 +79,42 @@ def login(username, password):
         EC.presence_of_element_located((By.XPATH, '//*[@id="accountAvatars"]/section/div'))
     )
 
+
+    select_world_button = driver.find_element(By.XPATH, '//*[@id="accountAvatars"]/section/div[1]/div[2]/button')
+    select_world_button.click()
     # Step 7: Select the world to enter
-    world_select_button = driver.find_element(By.XPATH, '//*[@id="accountAvatars"]/section/div')
-    world_select_button.click()
+    # world_select_button = driver.find_element(By.XPATH, '//*[@id="accountAvatars"]/section/div')
+    # world_select_button.click()
 
     # Step 8: Select the instance to enter
-    server_select_button = driver.find_element(By.XPATH, '//*[@id="newGameworlds"]/section[2]/div[1]/div[2]')
-    server_select_button.click()
+    # server_select_button = driver.find_element(By.XPATH, '//*[@id="newGameworlds"]/section[2]/div[1]/div[2]')
+    # server_select_button.click()
 
     # Step 9: Enter the world
-    instance_select_button = driver.find_element(By.XPATH, '//*[@id="gameworldDetails"]/section[2]/form/button')
-    instance_select_button.click()
+    # instance_select_button = driver.find_element(By.XPATH, '//*[@id="gameworldDetails"]/section[2]/form/button')
+    # instance_select_button.click()
 
     # Step 10: choose a tribe
-    tribe_select_button = driver.find_element(By.XPATH, '//*[@id="activate"]/div/div[2]/label[5]')
-    tribe_select_button.click()
+    # tribe_select_button = driver.find_element(By.XPATH, '//*[@id="activate"]/div/div[2]/label[5]')
+    # tribe_select_button.click()
 
     # Step 11: confirm the tribe choice
-    tribe_confirm_button = driver.find_element(By.XPATH, '//*[@id="selectTribe"]')
-    tribe_confirm_button.click()
+    # tribe_confirm_button = driver.find_element(By.XPATH, '//*[@id="selectTribe"]')
+    # tribe_confirm_button.click()
 
     # Step 11: Get the village started
-    start_confirm_button = driver.find_element(By.XPATH, '//*[@id="selectSector"]')
-    start_confirm_button.click()
+    # start_confirm_button = driver.find_element(By.XPATH, '//*[@id="selectSector"]')
+    # start_confirm_button.click()
 
     # Step 12: Lets play
-    start_confirmation_button = driver.find_element(By.XPATH, '//*[@id="confirm"]')
-    start_confirmation_button.click()
-    time.sleep(30)
+    # start_confirmation_button = driver.find_element(By.XPATH, '//*[@id="confirm"]')
+    # start_confirmation_button.click()
+
     # Step 8: Wait for the main dashboard or village page to load after logging in
     # WebDriverWait(driver, 10).until(
     #     EC.presence_of_element_located((By.ID, "villageName"))
     # )
+    time.sleep(5)
     print("Logged in and world selected successfully!")
 
 
