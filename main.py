@@ -1,6 +1,9 @@
 import subprocess
 import sys
-
+import random
+import keyboard
+import time
+import tkinter as tk
 
 # Function to check if a package is installed, and if not, install it
 def install_package(package_name):
@@ -29,10 +32,13 @@ from selenium.webdriver.chrome.options import Options  # Use options to configur
 import time
 
 # Configuration
-TRAVIAN_URL = "https://www.travian.com/international#loginLobby"
-USERNAME = "hddgeggtgbfpnnwgdg@ytnhy.com"  # Replace with your username
-PASSWORD = "notgonasayit2@"  # Replace with your password
+TRAVIAN_URL = "https://ts8.x1.europe.travian.com/"
+RALLYPOINT_URL = "https://ts8.x1.europe.travian.com/build.php?id=39&gid=16&tt=99"
+USERNAME = "b.phylipsen@gmail.com"  # Replace with your username
+PASSWORD = "MarkHoudtvanPizza"  # Replace with your password
 OASIS_COORDINATES = (12, 34)  # Example coordinates of the oasis
+RAID_MINTIME = 360 #seconds
+RAID_MAXTIME = 480 #seconds
 
 # Set up Chrome options (optional: can configure headless mode or other settings)
 chrome_options = Options()
@@ -49,75 +55,59 @@ driver.implicitly_wait(10)
 
 def login(username, password):
     driver.get(TRAVIAN_URL)
-
-    # Step 1: Click the button to go to the login page (button identified by XPath)
-    # login_button = WebDriverWait(driver, 10).until(
-    #     EC.element_to_be_clickable((By.XPATH, '//*[@id="login"]'))
-    # )
-    # login_button.click()
-
-    # Step 2: Wait for the login form to become visible
-    # WebDriverWait(driver, 10).until(
-    #     EC.presence_of_element_located((By.XPATH, '//*[@id="loginLobby"]/div/div/div/div[2]/form/div/label[1]/input'))
-    # )
-    time.sleep(2)
+    time.sleep(1)
 
     # Step 3: Enter username using the provided XPath
-    username_field = driver.find_element(By.XPATH, '//*[@id="loginLobby"]/div/div/div/div[2]/form/div/label[1]/input')
+    username_field = driver.find_element(By.XPATH, '//*[@id="loginScene"]/div/div/div/div/div/form/div/div/label[1]/input')
     username_field.send_keys(username)
 
     # Step 4: Enter password using the provided XPath
-    password_field = driver.find_element(By.XPATH, '//*[@id="loginLobby"]/div/div/div/div[2]/form/div/label[2]/input')
+    password_field = driver.find_element(By.XPATH, '//*[@id="loginScene"]/div/div/div/div/div/form/div/div/label[2]/input')
     password_field.send_keys(password)
 
     # Step 5: Click the submit button using the provided XPath
-    submit_button = driver.find_element(By.XPATH, '//*[@id="loginLobby"]/div/div/div/div[2]/form/div/div[2]/button')
+    submit_button = driver.find_element(By.XPATH, '//*[@id="loginScene"]/div/div/div/div/div/form/div/div/div[2]/button')
     submit_button.click()
 
-    # Step 6: Wait for the world selection screen to appear
+    # Step 6: Wait for the main dashboard or village page to load after logging in
     WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.XPATH, '//*[@id="accountAvatars"]/section/div'))
+         EC.presence_of_element_located((By.ID, "villageName"))
     )
+    time.sleep(2)
+    print("Logged in successfully!")
 
 
-    select_world_button = driver.find_element(By.XPATH, '//*[@id="accountAvatars"]/section/div[1]/div[2]/button')
-    select_world_button.click()
-    # Step 7: Select the world to enter
-    # world_select_button = driver.find_element(By.XPATH, '//*[@id="accountAvatars"]/section/div')
-    # world_select_button.click()
-
-    # Step 8: Select the instance to enter
-    # server_select_button = driver.find_element(By.XPATH, '//*[@id="newGameworlds"]/section[2]/div[1]/div[2]')
-    # server_select_button.click()
-
-    # Step 9: Enter the world
-    # instance_select_button = driver.find_element(By.XPATH, '//*[@id="gameworldDetails"]/section[2]/form/button')
-    # instance_select_button.click()
-
-    # Step 10: choose a tribe
-    # tribe_select_button = driver.find_element(By.XPATH, '//*[@id="activate"]/div/div[2]/label[5]')
-    # tribe_select_button.click()
-
-    # Step 11: confirm the tribe choice
-    # tribe_confirm_button = driver.find_element(By.XPATH, '//*[@id="selectTribe"]')
-    # tribe_confirm_button.click()
-
-    # Step 11: Get the village started
-    # start_confirm_button = driver.find_element(By.XPATH, '//*[@id="selectSector"]')
-    # start_confirm_button.click()
-
-    # Step 12: Lets play
-    # start_confirmation_button = driver.find_element(By.XPATH, '//*[@id="confirm"]')
-    # start_confirmation_button.click()
-
-    # Step 8: Wait for the main dashboard or village page to load after logging in
-    # WebDriverWait(driver, 10).until(
-    #     EC.presence_of_element_located((By.ID, "villageName"))
-    # )
-    time.sleep(5)
-    print("Logged in and world selected successfully!")
 
 
+def Auto_raidList(type, minTime, maxTime, startRaid):
+    global timeNewraid
+
+    if startRaid and timeNewraid < time.time():
+        # Step 1: Open rally point
+        driver.get(RALLYPOINT_URL)
+        time.sleep(1)
+        # Step 2: Start raid
+        match type:
+            case "close":
+                submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
+                submit_button.click()
+                print("Raid send successfully!")
+            case "Mid":
+                submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
+                submit_button.click()
+                print("Raid send successfully!")          
+
+            case "far":
+                submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
+                submit_button.click()
+                print("Raid send successfully!")
+            case "":
+                print("No range selected")
+
+        # step 3 calculate new time to start raid
+        timeNewraid = time.time() + random.randint(minTime, maxTime)
+        print(f"New raid at: {timeNewraid}")
+        
 def build_structure(building_name):
     # Go to the building area and choose a building to upgrade or construct
     driver.get("https://www.travian.com/building-area")
@@ -190,11 +180,21 @@ def attack_oasis(coordinates, units):
     print(f"Attack sent to oasis at coordinates {coordinates}.")
     time.sleep(5)
 
-
 def main():
+    global startRaid
+    global timeNewraid
+    timeNewraid = time.time()
+    startRaid = False
+
     try:
         login(USERNAME, PASSWORD)
+        while True:
+            if keyboard.is_pressed('Ctrl+F7'): #Zou vanuit UI kunnen komen straks
+                startRaid = not startRaid
+                print(f"Autoraid {'activated' if startRaid else 'disabled'}")
 
+            Auto_raidList("close", RAID_MINTIME, RAID_MAXTIME, startRaid)
+            
         # Step 1: Build/upgrade village structures
         # build_structure("Main Building")
         # build_structure("Barracks")
@@ -205,7 +205,7 @@ def main():
 
         # Step 3: Attack an Oasis
         # attack_oasis(OASIS_COORDINATES, {"1": 5})  # Example: Send 5 Legionnaires (unit ID = 1)
-        time.sleep(30)
+            time.sleep(1)
     finally:
         driver.quit()
 
