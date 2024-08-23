@@ -1,9 +1,10 @@
 import subprocess
 import sys
 import random
-import keyboard
 import time
 import tkinter as tk
+from tkinter import messagebox
+import threading
 
 # Function to check if a package is installed, and if not, install it
 def install_package(package_name):
@@ -15,7 +16,6 @@ def install_package(package_name):
         subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
         print(f"{package_name} has been installed.")
 
-
 # Check and install Selenium and WebDriver Manager
 install_package("selenium")
 install_package("webdriver_manager")
@@ -24,12 +24,10 @@ install_package("webdriver_manager")
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager  # For automatic WebDriver management
 from selenium.webdriver.chrome.options import Options  # Use options to configure Chrome WebDriver
-import time
 
 # Configuration
 TRAVIAN_URL = "https://ts8.x1.europe.travian.com/"
@@ -37,19 +35,18 @@ RALLYPOINT_URL = "https://ts8.x1.europe.travian.com/build.php?id=39&gid=16&tt=99
 USERNAME = "b.phylipsen@gmail.com"  # Replace with your username
 PASSWORD = "MarkHoudtvanPizza"  # Replace with your password
 OASIS_COORDINATES = (12, 34)  # Example coordinates of the oasis
-RAID_MINTIME = 360 #seconds
-RAID_MAXTIME = 480 #seconds
 
-# Set up Chrome options (optional: can configure headless mode or other settings)
+# Global variables for raid times and raid states
+raid_min_time_close, raid_max_time_close = 360, 480
+raid_min_time_mid, raid_max_time_mid = 360, 480
+raid_min_time_far, raid_max_time_far = 360, 480
+startRaid_close = startRaid_mid = startRaid_far = False
+timeNewraid_close = timeNewraid_mid = timeNewraid_far = time.time()
+
+# Set up Chrome options
 chrome_options = Options()
-# chrome_options.add_argument("--start-maximized")  # Open Chrome maximized
-chrome_options.add_argument("--disable-search-engine-choice-screen")  # We don't need to search anything
-# chrome_options.add_argument("--disable-extensions")  # Disable extensions for clean run
-
-# Use ChromeDriverManager to automatically manage ChromeDriver and create a Service object
+chrome_options.add_argument("--disable-search-engine-choice-screen")
 service = Service(ChromeDriverManager().install())
-
-# Initialize WebDriver with the service and options
 driver = webdriver.Chrome(service=service, options=chrome_options)
 driver.implicitly_wait(10)
 
@@ -71,144 +68,178 @@ def login(username, password):
 
     # Step 6: Wait for the main dashboard or village page to load after logging in
     WebDriverWait(driver, 10).until(
-         EC.presence_of_element_located((By.ID, "villageName"))
+        EC.presence_of_element_located((By.ID, "villageName"))
     )
     time.sleep(2)
     print("Logged in successfully!")
 
-
-
-
-def Auto_raidList(type, minTime, maxTime, startRaid):
-    global timeNewraid
-
-    if startRaid and timeNewraid < time.time():
-        # Step 1: Open rally point
+def auto_raid_list(raid_type, minTime, maxTime, startRaid, next_raid_time):
+    if startRaid and next_raid_time < time.time():
+        # Open rally point
         driver.get(RALLYPOINT_URL)
         time.sleep(1)
-        # Step 2: Start raid
-        match type:
-            case "close":
-                submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
-                submit_button.click()
-                print("Raid send successfully!")
-            case "Mid":
-                submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
-                submit_button.click()
-                print("Raid send successfully!")          
 
-            case "far":
-                submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
-                submit_button.click()
-                print("Raid send successfully!")
-            case "":
-                print("No range selected")
+        # Send raid based on type
+        raid_button_xpath = '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button'
+        submit_button = driver.find_element(By.XPATH, raid_button_xpath)
+        submit_button.click()
+        print(f"{raid_type.capitalize()} raid sent successfully!")
 
-        # step 3 calculate new time to start raid
-        timeNewraid = time.time() + random.randint(minTime, maxTime)
-        print(f"New raid at: {timeNewraid}")
-        
-def build_structure(building_name):
-    # Go to the building area and choose a building to upgrade or construct
-    driver.get("https://www.travian.com/building-area")
+        # Calculate new time to start the raid
+        return time.time() + random.randint(minTime, maxTime)
+    return next_raid_time
 
-    # Find the building by name or position
-    WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.XPATH, f"//div[text()='{building_name}']"))
-    )
-
-    building_element = driver.find_element(By.XPATH, f"//div[text()='{building_name}']")
-    building_element.click()
-
-    # Click the build or upgrade button
-    WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.CLASS_NAME, "build-upgrade-button"))
-    )
-
-    upgrade_button = driver.find_element(By.CLASS_NAME, "build-upgrade-button")
-    upgrade_button.click()
-
-    print(f"{building_name} is being constructed or upgraded.")
-    time.sleep(5)
-
-
-def train_units(unit_name, quantity):
-    # Navigate to the Barracks/Stable where units can be trained
-    driver.get("https://www.travian.com/barracks")
-
-    # Find the unit type and set the quantity
-    WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.XPATH, f"//div[text()='{unit_name}']"))
-    )
-
-    unit_field = driver.find_element(By.XPATH, f"//input[@name='{unit_name}']")
-    unit_field.clear()
-    unit_field.send_keys(str(quantity))
-
-    # Click the train button
-    train_button = driver.find_element(By.CLASS_NAME, "train-button")
-    train_button.click()
-
-    print(f"Training {quantity} {unit_name} units.")
-    time.sleep(5)
-
-
-def attack_oasis(coordinates, units):
-    # Go to the rally point
-    driver.get("https://www.travian.com/rally-point")
-
-    # Enter the coordinates of the oasis
-    x_coord = driver.find_element(By.NAME, "x")
-    y_coord = driver.find_element(By.NAME, "y")
-    x_coord.send_keys(str(coordinates[0]))
-    y_coord.send_keys(str(coordinates[1]))
-
-    # Assign units to the attack
-    for unit_type, count in units.items():
-        unit_field = driver.find_element(By.NAME, f"t{unit_type}")
-        unit_field.clear()
-        unit_field.send_keys(str(count))
-
-    # Choose attack type (0 = Attack, 1 = Raid, etc.)
-    attack_type_radio = driver.find_element(By.ID, "button1")  # 'Attack' button
-    attack_type_radio.click()
-
-    # Click the confirm/send button
-    send_button = driver.find_element(By.NAME, "btn_ok")
-    send_button.click()
-
-    print(f"Attack sent to oasis at coordinates {coordinates}.")
-    time.sleep(5)
-
-def main():
-    global startRaid
-    global timeNewraid
-    timeNewraid = time.time()
-    startRaid = False
+def toggle_raid(raid_type):
+    global startRaid_close, startRaid_mid, startRaid_far
+    global raid_min_time_close, raid_max_time_close
+    global raid_min_time_mid, raid_max_time_mid
+    global raid_min_time_far, raid_max_time_far
+    global timeNewraid_close, timeNewraid_mid, timeNewraid_far
 
     try:
-        login(USERNAME, PASSWORD)
-        while True:
-            if keyboard.is_pressed('Ctrl+F7'): #Zou vanuit UI kunnen komen straks
-                startRaid = not startRaid
-                print(f"Autoraid {'activated' if startRaid else 'disabled'}")
+        # Update times and toggle the corresponding raid
+        if raid_type == "close":
+            raid_min_time_close = int(min_entry_close.get())
+            raid_max_time_close = int(max_entry_close.get())
+            startRaid_close = not startRaid_close
+            timeNewraid_close = time.time()
+            status = "activated" if startRaid_close else "deactivated"
+            update_button("close", startRaid_close)
+        elif raid_type == "mid":
+            raid_min_time_mid = int(min_entry_mid.get())
+            raid_max_time_mid = int(max_entry_mid.get())
+            startRaid_mid = not startRaid_mid
+            timeNewraid_mid = time.time()
+            status = "activated" if startRaid_mid else "deactivated"
+            update_button("mid", startRaid_mid)
+        elif raid_type == "far":
+            raid_min_time_far = int(min_entry_far.get())
+            raid_max_time_far = int(max_entry_far.get())
+            startRaid_far = not startRaid_far
+            timeNewraid_far = time.time()
+            status = "activated" if startRaid_far else "deactivated"
+            update_button("far", startRaid_far)
 
-            Auto_raidList("close", RAID_MINTIME, RAID_MAXTIME, startRaid)
-            
-        # Step 1: Build/upgrade village structures
-        # build_structure("Main Building")
-        # build_structure("Barracks")
-        # build_structure("Warehouse")
+        messagebox.showinfo("Success", f"{raid_type.capitalize()} raid {status} with updated times.")
+    except ValueError:
+        messagebox.showerror("Error", "Please enter valid integers for Min and Max times.")
 
-        # Step 2: Train units
-        # train_units("Legionnaire", 10)
+def update_button(raid_type, startRaid):
+    button = start_buttons[raid_type]
+    if startRaid:
+        button.config(text="Stop", bg="red")
+    else:
+        button.config(text="Start", bg="green")
 
-        # Step 3: Attack an Oasis
-        # attack_oasis(OASIS_COORDINATES, {"1": 5})  # Example: Send 5 Legionnaires (unit ID = 1)
-            time.sleep(1)
-    finally:
-        driver.quit()
+def update_countdown():
+    global timeNewraid_close, timeNewraid_mid, timeNewraid_far
 
+    def time_left(next_raid_time):
+        seconds_left = int(max(next_raid_time - time.time(), 0))
+        minutes, seconds = divmod(seconds_left, 60)
+        return f"{minutes:02}:{seconds:02}"
+
+    # Update the countdown labels
+    countdown_label_close.config(text=f"Close Raid: {time_left(timeNewraid_close)}")
+    countdown_label_mid.config(text=f"Mid Raid: {time_left(timeNewraid_mid)}")
+    countdown_label_far.config(text=f"Far Raid: {time_left(timeNewraid_far)}")
+
+    # Call this function again after 1000 ms (1 second)
+    root.after(1000, update_countdown)
+
+def run_auto_raids():
+    global timeNewraid_close, timeNewraid_mid, timeNewraid_far
+    while True:
+        timeNewraid_close = auto_raid_list("close", raid_min_time_close, raid_max_time_close, startRaid_close, timeNewraid_close)
+        timeNewraid_mid = auto_raid_list("mid", raid_min_time_mid, raid_max_time_mid, startRaid_mid, timeNewraid_mid)
+        timeNewraid_far = auto_raid_list("far", raid_min_time_far, raid_max_time_far, startRaid_far, timeNewraid_far)
+        time.sleep(1)
+
+def setup_gui():
+    global min_entry_close, max_entry_close
+    global min_entry_mid, max_entry_mid
+    global min_entry_far, max_entry_far
+    global countdown_label_close, countdown_label_mid, countdown_label_far
+    global root, start_buttons
+
+    root = tk.Tk()
+    root.title("Travian Auto-Raider")
+
+    def create_frame(parent, title, color):
+        frame = tk.Frame(parent, borderwidth=2, relief="groove")
+        title_label = tk.Label(frame, text=title, font=('Helvetica', 10, 'bold'), bg=color, fg='white')
+        title_label.grid(row=0, column=0, columnspan=3, sticky='ew')
+        return frame
+
+    # Create frames for each raid type
+    frame_close = create_frame(root, "Close Raid", "#ff6666")  # Light Red
+    frame_close.grid(row=0, column=0, padx=10, pady=10, sticky='ew')
+
+    frame_mid = create_frame(root, "Mid Raid", "#66b3ff")  # Light Blue
+    frame_mid.grid(row=1, column=0, padx=10, pady=10, sticky='ew')
+
+    frame_far = create_frame(root, "Far Raid", "#99ff99")  # Light Green
+    frame_far.grid(row=2, column=0, padx=10, pady=10, sticky='ew')
+
+    # Labels and entry fields for Close raid times
+    tk.Label(frame_close, text="Min:").grid(row=1, column=0, padx=5, pady=5)
+    tk.Label(frame_close, text="Max:").grid(row=1, column=1, padx=5, pady=5)
+    min_entry_close = tk.Entry(frame_close, width=5)
+    max_entry_close = tk.Entry(frame_close, width=5)
+    min_entry_close.grid(row=2, column=0, padx=5)
+    max_entry_close.grid(row=2, column=1, padx=5)
+
+    start_buttons = {}
+    start_buttons["close"] = tk.Button(frame_close, text="Start", bg="green", command=lambda: toggle_raid("close"))
+    start_buttons["close"].grid(row=2, column=2, rowspan=2, padx=5, pady=5)
+
+    # Labels and entry fields for Mid raid times
+    tk.Label(frame_mid, text="Min:").grid(row=1, column=0, padx=5, pady=5)
+    tk.Label(frame_mid, text="Max:").grid(row=1, column=1, padx=5, pady=5)
+    min_entry_mid = tk.Entry(frame_mid, width=5)
+    max_entry_mid = tk.Entry(frame_mid, width=5)
+    min_entry_mid.grid(row=2, column=0, padx=5)
+    max_entry_mid.grid(row=2, column=1, padx=5)
+
+    start_buttons["mid"] = tk.Button(frame_mid, text="Start", bg="green", command=lambda: toggle_raid("mid"))
+    start_buttons["mid"].grid(row=2, column=2, rowspan=2, padx=5, pady=5)
+
+    # Labels and entry fields for Far raid times
+    tk.Label(frame_far, text="Min:").grid(row=1, column=0, padx=5, pady=5)
+    tk.Label(frame_far, text="Max:").grid(row=1, column=1, padx=5, pady=5)
+    min_entry_far = tk.Entry(frame_far, width=5)
+    max_entry_far = tk.Entry(frame_far, width=5)
+    min_entry_far.grid(row=2, column=0, padx=5)
+    max_entry_far.grid(row=2, column=1, padx=5)
+
+    start_buttons["far"] = tk.Button(frame_far, text="Start", bg="green", command=lambda: toggle_raid("far"))
+    start_buttons["far"].grid(row=2, column=2, rowspan=2, padx=5, pady=5)
+
+    # Labels to display countdown
+    countdown_label_close = tk.Label(root, text="Close Raid: --:--")
+    countdown_label_close.grid(row=0, column=1, padx=10, pady=5)
+
+    countdown_label_mid = tk.Label(root, text="Mid Raid: --:--")
+    countdown_label_mid.grid(row=1, column=1, padx=10, pady=5)
+
+    countdown_label_far = tk.Label(root, text="Far Raid: --:--")
+    countdown_label_far.grid(row=2, column=1, padx=10, pady=5)
+
+    # Start the countdown updates
+    update_countdown()
+
+    root.mainloop()
+
+def main():
+    login(USERNAME, PASSWORD)
+
+    # Start the GUI in a separate thread to keep it responsive
+    gui_thread = threading.Thread(target=setup_gui)
+    gui_thread.daemon = True
+    gui_thread.start()
+
+    # Start the raid loop
+    run_auto_raids()
 
 if __name__ == "__main__":
     main()
