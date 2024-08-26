@@ -146,7 +146,7 @@ def index_oasis():
 
     with open("gevonden_oases.csv", mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
-        writer.writerow(["URL", "Coordinates", "Distance", "Troops"])
+        writer.writerow(["MapID", "Coordinates", "Distance", "Troops", "Bounty/HP"])
 
     oases = []
 
@@ -165,15 +165,21 @@ def index_oasis():
                     coords_match = re.search(r'\(([^)]+)\)', captured_text)
                     coordinates = coords_match.group(1) if coords_match else "Onbekend"
                     
-                    distance_element = driver.find_element(By.XPATH, '//*[@id="distance"]/tbody/tr/td[2]')
-                    distance = distance_element.text if distance_element else "Onbekend"
-                    
-                    print(f"Onbezette oase gevonden bij: {url} met coördinaten {coordinates} en afstand {distance}")
-                    oases.append((url, coordinates, distance))
+                    try:
+                        distance_element = driver.find_element(By.XPATH, '//*[@id="distance"]/tbody/tr/td[2]')
+                        distance_text = distance_element.text.strip()
+                        distance_match = re.match(r'(\d+(\.\d+)?) fields', distance_text)
+                        distance = float(distance_match.group(1)) if distance_match else float('inf')
+                    except Exception:
+                        distance = float('inf')  # Fallback voor onbekende of ontbrekende afstanden
+
+                    print(f"Onbezette oase gevonden bij: {map_id} met coördinaten {coordinates} en afstand {distance}")
+                    oases.append((map_id, coordinates, distance))
             except Exception as e:
                 print(f"Fout bij indexering van oase op {url}: {e}")
 
-    oases.sort(key=lambda x: float(x[2].replace(',', '')) if x[2].replace(',', '').replace('.', '').isdigit() else float('inf'))
+    # Sorteer de oases op basis van afstand
+    oases.sort(key=lambda x: x[2])
 
     with open("gevonden_oases.csv", mode='a', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
@@ -224,12 +230,14 @@ def update_oasis_gui(list_frame):
             tk.Label(header_frame, text="Coordinates", width=11, font=("Arial", 9, "bold"), anchor="w").pack(side="left", padx=5, pady=5)
             tk.Label(header_frame, text="Distance", width=10, font=("Arial", 9, "bold"), anchor="w").pack(side="left", padx=5, pady=5)
             tk.Label(header_frame, text="Troops", width=40, font=("Arial", 9, "bold"), anchor="w").pack(side="left", padx=5, pady=5)
+            tk.Label(header_frame, text="Bounty/HP", width=10, font=("Arial", 9, "bold"), anchor="w").pack(side="left", padx=5, pady=5)
 
             for row in oases:
-                url = row['URL']
+                map_id = row['MapID']
                 coordinates = row['Coordinates']
                 distance = row['Distance']
-                troops = row['Troops'] if 'Troops' in row else "No data"
+                troops = row['Troops']
+                bountyVSHeath = row['Bounty/HP']
 
                 # Maak een frame voor elke rij
                 row_frame = tk.Frame(list_frame)
@@ -237,6 +245,7 @@ def update_oasis_gui(list_frame):
 
                 # Toon coördinaten
                 text = f"{coordinates}"
+                url = f"{MAP_URL}{map_id}"
                 link = tk.Label(row_frame, text=text, fg="blue", cursor="hand2", width=11, anchor="w")
                 link.pack(side="left", fill="x", padx=5, pady=2)
                 link.bind("<Button-1>", lambda e, url=url: webbrowser.open(url))
@@ -247,6 +256,10 @@ def update_oasis_gui(list_frame):
 
                 # Toon troops
                 troops_label = tk.Label(row_frame, text=troops, width=40, anchor="w")
+                troops_label.pack(side="left", fill="x", padx=5, pady=2)
+
+                # Toon Bounty vs heath
+                troops_label = tk.Label(row_frame, text=bountyVSHeath, width=10, anchor="w")
                 troops_label.pack(side="left", fill="x", padx=5, pady=2)
 
     except FileNotFoundError:
@@ -397,6 +410,47 @@ def initialise():
     raid_min_time_close =  raid_min_time_mid =  raid_min_time_far  = 360 
     raid_max_time_close =raid_max_time_mid = raid_max_time_far = 480
 
+def calculate_resourcesVSheath(troops_values, fieldnumber):
+    if not(troops_values == "none"):
+        driver.get(f"https://ts8.x1.europe.travian.com/build.php?id=39&tt=3&screen=combatSimulator&kid={fieldnumber}")
+        time.sleep(1)
+
+        for i in range(1, 11):
+            unit_field = driver.find_element(By.XPATH, f'//*[@id="combatSimulatorForm"]/div[2]/div[3]/div[3]/table/tbody/tr[2]/td[{i}]/input')
+            driver.execute_script("arguments[0].value = '';", unit_field)
+            unit_field.send_keys("0")
+
+        #Hero
+        hero_checkbox = driver.find_element(By.XPATH, '//*[@id="combatSimulatorForm"]/div[2]/div[3]/div[3]/table/tbody/tr[2]/td[11]/input')
+        if not hero_checkbox.is_selected():
+            hero_checkbox.click()
+
+        simulate_button = driver.find_element(By.XPATH, '//*[@id="simulate"]')
+        simulate_button.click()
+        time.sleep(1)
+        try:
+            healthLoss_field = driver.find_element(By.XPATH, '//*[@id="combatSimulator"]/div[2]/div[2]/div[3]/table/tbody/tr/td')
+            healthLoss_tekst = healthLoss_field.text
+            parts = healthLoss_tekst.split() # 'Hero's health lowered from [initial_heath] to [new_health]'
+            initial_health = int(parts[4])
+            new_health = int(parts[6])
+            heath_lost = initial_health - new_health
+        except:
+            heath_lost = 1 # Als hero geen health schade heeft opgelopen
+            new_health = 100
+
+        resource_field = driver.find_element(By.XPATH, '//*[@id="combatSimulator"]/div[2]/div[4]/div[2]/div/div[1]')
+        single_Resourcebounty = int(resource_field.text)
+        resource_bounty = single_Resourcebounty*4
+        if new_health > 1:
+            BountyVSheath = round(resource_bounty/heath_lost)
+        else:
+            BountyVSheath = 0
+
+        return BountyVSheath
+    else:
+        return 0
+
 def check_oasis():
     with open("gevonden_oases.csv", "r", newline='', encoding='utf-8') as file:
         reader = csv.DictReader(file)
@@ -404,7 +458,9 @@ def check_oasis():
 
         for row in oases:
             if row:
-                driver.get(row[list(row.keys())[0]])
+                map_id = row['MapID']
+                url = f"{MAP_URL}{map_id}"
+                driver.get(url)
                 time.sleep(1)
 
                 try:
@@ -416,13 +472,18 @@ def check_oasis():
                         if "simulate raid" in troop_text:
                             break
                         troops_values.append(troop_text)
-                    
                     troops_value = ", ".join(troops_values)
+
+                    BountyVSHeath = calculate_resourcesVSheath(troops_value, map_id)
+
                 except Exception as e:
                     troops_value = None
+                    BountyVSHeath = 0
                     print(f"Error fetching troop info: {e}")
 
                 row['Troops'] = troops_value if troops_value else "No data"
+                row["Bounty/HP"] = BountyVSHeath
+
 
         with open("gevonden_oases.csv", "w", newline='', encoding='utf-8') as file:
             writer = csv.DictWriter(file, fieldnames=oases[0].keys())
@@ -435,7 +496,6 @@ def check_Oasis_after(root):
     check_oasis()
     root.after(10000, Auto_raidList, root)
 
-
 def main():     
     initialise() 
     login(USERNAME, PASSWORD)
@@ -446,7 +506,6 @@ def main():
     root.after(1000, Auto_raidList, root)
     root.after(600000, check_Oasis_after, root)
     root.mainloop()
-
 
 if __name__ == "__main__":
     main()
