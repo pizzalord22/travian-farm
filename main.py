@@ -67,6 +67,7 @@ CHECK_IDS = [
 chrome_options = Options()
 # chrome_options.add_argument("--start-maximized")  # Open Chrome maximized
 chrome_options.add_argument("--disable-search-engine-choice-screen")  # We don't need to search anything
+chrome_options.add_argument("--force-device-scale-factor=0.8")
 # chrome_options.add_argument("--disable-extensions")  # Disable extensions for clean run
 
 # Use ChromeDriverManager to automatically manage ChromeDriver and create a Service object
@@ -74,6 +75,7 @@ service = Service(ChromeDriverManager().install())
 
 # Initialize WebDriver with the service and options
 driver = webdriver.Chrome(service=service, options=chrome_options)
+driver.maximize_window()
 driver.implicitly_wait(10)
 
 def login(username, password):
@@ -210,6 +212,56 @@ def create_title_bar(parent, title):
     title_label.grid(row=0, column=0, padx=5, pady=5)
     return title_bar
 
+def raid_hero(troops_values, MapID):
+    # Open simulation page for chosen oasis
+    calculate_resourcesVSheath(troops_values, MapID)
+    
+    # Click on send troops button in simulation page
+    try:
+        sendTroops_button = driver.find_element(By.XPATH, '//*[@id="sendTroops"]')
+        sendTroops_button.click()
+        time.sleep(1)
+    except:
+        print("Raid Hero function: 'Send troops' button in simulation failed")
+
+    # Click on the send button in troop overview
+    try:
+        send_button = driver.find_element(By.XPATH, '//*[@id="ok"]')
+        send_button.click()
+        time.sleep(1)
+    except:
+        print("Raid Hero function: send button in troop overview failed")
+
+    # Click on the confirm button
+    try:
+        Confirm_button = driver.find_element(By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[2]/div/div[3]/div/form/div[1]/button[3]')
+        Confirm_button.click()
+        time.sleep(1)
+    except:
+        print("Raid Hero function: Confirm button in attack overview failed")
+
+def show_confirmation_popup(Coordinates, troops, map_id):
+    popup = tk.Toplevel()
+    popup.title("Confirm Action")
+
+    tk.Label(popup, text=f"Send Hero to oasis {Coordinates}?", font=("Arial", 12)).pack(pady=10)
+    
+    def confirm_action():
+        raid_hero(troops, map_id)
+        popup.destroy()
+
+    confirm_button = tk.Button(popup, text="Confirm", command=confirm_action)
+    confirm_button.pack(side="left", padx=20, pady=20)
+    
+    cancel_button = tk.Button(popup, text="Cancel", command=popup.destroy)
+    cancel_button.pack(side="right", padx=20, pady=20)
+
+def heroTraveling():
+    HeroStatus_Icon = driver.find_element(By.XPATH, '//*[@id="topBarHero"]/div/a/i')
+    HeroStatus = HeroStatus_Icon.get_attribute('class')
+    heroIsTraveling = "heroRunning" == HeroStatus
+    return heroIsTraveling
+
 def update_oasis_gui(list_frame):
     # Verwijder alle bestaande widgets uit het list_frame
     for widget in list_frame.winfo_children():
@@ -220,9 +272,6 @@ def update_oasis_gui(list_frame):
             reader = csv.DictReader(file)
             oases = list(reader)
             
-            # Sorteer oases op afstand
-            oases.sort(key=lambda row: float(row['Distance'].replace(',', '')) if row['Distance'].replace(',', '').replace('.', '').isdigit() else float('inf'))
-
             # Maak headers
             header_frame = tk.Frame(list_frame)
             header_frame.pack(fill="x")
@@ -255,8 +304,13 @@ def update_oasis_gui(list_frame):
                 distance_label.pack(side="left", fill="x", padx=5, pady=2)
 
                 # Toon troops
-                troops_label = tk.Label(row_frame, text=troops, width=40, anchor="w")
-                troops_label.pack(side="left", fill="x", padx=5, pady=2)
+                if troops == "none" or bountyVSHeath == "0" or heroTraveling():
+                    troops_label = tk.Label(row_frame, text=troops, width=40, anchor="w")
+                    troops_label.pack(side="left", fill="x", padx=5, pady=2)
+                else:
+                    link = tk.Label(row_frame, text=troops, fg="blue", cursor="hand2", width=40, anchor="w")
+                    link.pack(side="left", fill="x", padx=5, pady=2)
+                    link.bind("<Button-1>", lambda e, c = coordinates, t=troops, m=map_id: show_confirmation_popup(c, t, m))
 
                 # Toon Bounty vs heath
                 troops_label = tk.Label(row_frame, text=bountyVSHeath, width=10, anchor="w")
@@ -369,13 +423,15 @@ def raid_class_gui(row, parent, name, newRaidTime, startStop, min_Time, max_Time
             startStop_var.set(True)
             start_button.config(text="Stop")
 
-    tk.Label(frame, text="min sec").grid(row=4, column=0, sticky="w", padx=5)
+    #TODO calculate and add the amound of troops needed to keep raiding all oasis in this class
+    
+    tk.Label(frame, text="min sec").grid(row=3, column=0, sticky="w", padx=5)
     min_entry = tk.Entry(frame, textvariable=tk.IntVar(value=min_Time))
-    min_entry.grid(row=3, column=0, columnspan=2, padx=5, pady=5)
+    min_entry.grid(row=3, column=1, padx=5, pady=5)
 
-    tk.Label(frame, text="max sec").grid(row=6, column=0, sticky="w", padx=5)
+    tk.Label(frame, text="max sec").grid(row=4, column=0, sticky="w", padx=5)
     max_entry = tk.Entry(frame, textvariable=tk.IntVar(value=max_Time))
-    max_entry.grid(row=4, column=0, columnspan=2, padx=5, pady=5)
+    max_entry.grid(row=4, column=1, padx=5, pady=5)
 
     start_button = tk.Button(frame, text="Start", borderwidth=1, relief="solid",  command=Start_buttonPressed)
     start_button.grid(row=6, column=0, columnspan=2, pady=5, sticky= "ew")
@@ -410,39 +466,61 @@ def initialise():
     raid_min_time_close =  raid_min_time_mid =  raid_min_time_far  = 360 
     raid_max_time_close =raid_max_time_mid = raid_max_time_far = 480
 
-def calculate_resourcesVSheath(troops_values, fieldnumber):
+def calculate_resourcesVSheath(troops_values, MapId):
+    # Open de simulation battle page for this Oasis
     if not(troops_values == "none"):
-        driver.get(f"https://ts8.x1.europe.travian.com/build.php?id=39&tt=3&screen=combatSimulator&kid={fieldnumber}")
+        driver.get(f"https://ts8.x1.europe.travian.com/build.php?id=39&tt=3&screen=combatSimulator&kid={MapId}")
         time.sleep(1)
 
-        for i in range(1, 11):
-            unit_field = driver.find_element(By.XPATH, f'//*[@id="combatSimulatorForm"]/div[2]/div[3]/div[3]/table/tbody/tr[2]/td[{i}]/input')
-            driver.execute_script("arguments[0].value = '';", unit_field)
-            unit_field.send_keys("0")
+        try:
+            # set all field on 0
+            for i in range(1, 11):
+                unit_field = driver.find_element(By.XPATH, f'//*[@id="combatSimulatorForm"]/div[2]/div[3]/div[3]/table/tbody/tr[2]/td[{i}]/input')
+                driver.execute_script("arguments[0].value = '';", unit_field)
+                unit_field.send_keys("0")
+        except:
+            print(f"Simulation fight: Troop field failure at {MapId}")
 
-        #Hero
-        hero_checkbox = driver.find_element(By.XPATH, '//*[@id="combatSimulatorForm"]/div[2]/div[3]/div[3]/table/tbody/tr[2]/td[11]/input')
-        if not hero_checkbox.is_selected():
-            hero_checkbox.click()
+        try:
+            # Make sure checkbox hero is on
+            hero_checkbox = driver.find_element(By.XPATH, '//*[@id="combatSimulatorForm"]/div[2]/div[3]/div[3]/table/tbody/tr[2]/td[11]/input')
+            if not hero_checkbox.is_selected():
+                hero_checkbox.click()
+        except:
+            print(f"Simulation fight: Cannot find state or click on hero checkbox @ {MapId}, state: {hero_checkbox.is_selected():}")
 
-        simulate_button = driver.find_element(By.XPATH, '//*[@id="simulate"]')
-        simulate_button.click()
-        time.sleep(1)
+        try:
+            # start simulation by clicking on the button
+            simulate_button = driver.find_element(By.XPATH, '//*[@id="simulate"]')
+            simulate_button.click()
+            time.sleep(2)
+        except:
+            print(f"Simulation fight: Simulate button failure {MapId}")
+        
         try:
             healthLoss_field = driver.find_element(By.XPATH, '//*[@id="combatSimulator"]/div[2]/div[2]/div[3]/table/tbody/tr/td')
             healthLoss_tekst = healthLoss_field.text
-            parts = healthLoss_tekst.split() # 'Hero's health lowered from [initial_heath] to [new_health]'
-            initial_health = int(parts[4])
-            new_health = int(parts[6])
-            heath_lost = initial_health - new_health
-        except:
-            heath_lost = 1 # Als hero geen health schade heeft opgelopen
+            if 'might die' in healthLoss_tekst: # The hero survives with such low health that they might die in a real battle!
+                heath_lost = 100
+                new_health = 0 # To make bountyVSHeath 0
+            else:
+                parts = healthLoss_tekst.split() # 'Hero's health lowered from [initial_heath] to [new_health]'
+                initial_health = int(parts[4])
+                new_health = int(parts[6])
+                heath_lost = initial_health - new_health
+        except: # Als hero geen health schade heeft opgelopen
+            heath_lost = 1 # Om te voorkomen dat er een deling door 0 wordt gedaan
             new_health = 100
 
-        resource_field = driver.find_element(By.XPATH, '//*[@id="combatSimulator"]/div[2]/div[4]/div[2]/div/div[1]')
-        single_Resourcebounty = int(resource_field.text)
-        resource_bounty = single_Resourcebounty*4
-        if new_health > 1:
+        try:
+            # Check wood resource bounty
+            resource_field = driver.find_element(By.XPATH, '//*[@id="combatSimulator"]/div[2]/div[4]/div[2]/div/div[1]')
+            single_Resourcebounty = int(resource_field.text)
+            resource_bounty = single_Resourcebounty*4 #Bounty of all four resources is always the same
+        except:
+            resource_bounty = 0
+
+        if new_health > 1: #We don't want the hero to die
             BountyVSheath = round(resource_bounty/heath_lost)
         else:
             BountyVSheath = 0
@@ -450,6 +528,29 @@ def calculate_resourcesVSheath(troops_values, fieldnumber):
         return BountyVSheath
     else:
         return 0
+
+def Edit_raidList(troops_values, MapId):
+    try:
+        editRaidList_button = driver.find_element(By.XPATH, '/html/body/div[2]/div/div/div/div/form/div[5]/div/div[1]/div[2]/div[2]')
+        editRaidList_button.click()
+        time.sleep(1)
+        try:
+            # Deactivate oasis in raid list if animals are present
+            Deactivate_checkbox = driver.find_element(By.XPATH, '//*[@id="farmListTargetForm"]/div[4]/label/input')
+            if Deactivate_checkbox.is_selected() == (troops_values == "none"):
+                Deactivate_checkbox.click()
+                time.sleep(1)
+            try:
+                # Click on Edit farm list ('type of farmlist')
+                save_button = driver.find_element(By.XPATH, '//*[@id="farmListTargetForm"]/div[5]/button[3]')
+                save_button.click()
+                time.sleep(1)
+            except:
+                print(f"Edit raid list @{MapId}: save button failed")
+        except:
+            print(f"Edit raid list @{MapId}: deactivate checkbox failed")
+    except:
+        print(f"Edit raid list @{MapId}: Open edit farm list failed")
 
 def check_oasis():
     with open("gevonden_oases.csv", "r", newline='', encoding='utf-8') as file:
@@ -474,6 +575,7 @@ def check_oasis():
                         troops_values.append(troop_text)
                     troops_value = ", ".join(troops_values)
 
+                    Edit_raidList(troops_value, map_id)
                     BountyVSHeath = calculate_resourcesVSheath(troops_value, map_id)
 
                 except Exception as e:
@@ -494,7 +596,7 @@ def check_oasis():
 
 def check_Oasis_after(root):
     check_oasis()
-    root.after(10000, Auto_raidList, root)
+    root.after(600000, check_Oasis_after, root)
 
 def main():     
     initialise() 
