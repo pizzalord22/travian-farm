@@ -35,9 +35,8 @@ from tkinter import ttk
 
 # Configuratie
 TRAVIAN_URL = "https://ts8.x1.europe.travian.com/"
-RALLYPOINT_URL = "https://ts8.x1.europe.travian.com/build.php?id=39&gid=16&tt=99"
+RALLYPOINT_URL = "https://ts8.x1.europe.travian.com/build.php?id=39&gid=16"
 STARTVILLAGE_MAPID = 120553
-MAP_URL = "https://ts8.x1.europe.travian.com/position_details.php?mapId="  # zonder MAPid nummer
 USERNAME = "b.phylipsen@gmail.com"
 PASSWORD = "MarkHoudtvanPizza"
 
@@ -106,29 +105,38 @@ def Auto_raidList(root):
     global close_newRaidTime, mid_newRaidTime, far_newRaidTime
     global start_raidClose, start_raidMid, start_raidFar
 
-    if start_raidClose and close_newRaidTime < time.time():    
-        driver.get(RALLYPOINT_URL)
-        time.sleep(1)
+    if start_raidClose and close_newRaidTime < time.time():
+        # Open rally point page on driver
+        driver.get(f'{TRAVIAN_URL}build.php?id=39&gid=16&tt=99')
+        time.sleep(1)    
+        # Press the start farm list button
         submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
         submit_button.click()
+        # Create new random time for next raid
         close_newRaidTime = time.time() + random.randint(raid_min_time_close, raid_max_time_close)
         raid_frames[0](close_newRaidTime)
         print("Close raid send successfully!")
 
-    if start_raidMid and mid_newRaidTime < time.time():    
-        driver.get(RALLYPOINT_URL)
-        time.sleep(1)
+    if start_raidMid and mid_newRaidTime < time.time():
+        # Open rally point page on driver
+        driver.get(f'{TRAVIAN_URL}build.php?id=39&gid=16&tt=99')
+        time.sleep(1)  
+        # Press the start farm list button
         submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
         submit_button.click()
+        # Create new random time for next raid
         mid_newRaidTime = time.time() + random.randint(raid_min_time_mid, raid_max_time_mid)
         raid_frames[1](mid_newRaidTime)
         print("Mid raid send successfully!")      
 
-    if start_raidFar and far_newRaidTime < time.time():    
-        driver.get(RALLYPOINT_URL)
-        time.sleep(1)
+    if start_raidFar and far_newRaidTime < time.time():
+        # Open rally point page on driver
+        driver.get(f'{TRAVIAN_URL}build.php?id=39&gid=16&tt=99')
+        time.sleep(1)   
+        # Press the start farm list button
         submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
         submit_button.click()
+        # Create new random time for next raid
         far_newRaidTime = time.time() + random.randint(raid_min_time_far, raid_max_time_far)
         raid_frames[2](far_newRaidTime)
         print("Far raid send successfully!")
@@ -136,35 +144,41 @@ def Auto_raidList(root):
     root.after(1000, Auto_raidList, root)
 
 def index_oasis():
-    start_map_id = STARTVILLAGE_MAPID
-
     try:
         with open("gevonden_oases.csv", "r", newline='', encoding='utf-8') as file:
-            if file.read().strip():
-                print("CSV-bestand is niet leeg. Indexering wordt overgeslagen.")
+            if file.read().strip(): #check if CSV is not empty, then the index has already run
+                print("CSV-file not empty. Index can be skipped.")
                 return
     except FileNotFoundError:
+        print("Opening CSV file failure")
         pass
 
+    # create headers
     with open("gevonden_oases.csv", mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow(["MapID", "Coordinates", "Distance", "Troops", "Bounty/HP"])
 
     oases = []
 
-    for check_id in CHECK_IDS:
+    for check_id in CHECK_IDS: #Check all fields with max 10 distance
         for offset in [-check_id, check_id]:
-            map_id = start_map_id + offset
-            url = f"{MAP_URL}{map_id}"
+            # Open field url
+            map_id = STARTVILLAGE_MAPID + offset
+            url = f"{TRAVIAN_URL}position_details.php?mapId={map_id}"
             driver.get(url)
             time.sleep(1)
 
             try:
+                # find field title
                 field_type = driver.find_element(By.XPATH, '//*[@id="tileDetails"]/h1')
                 captured_text = field_type.text
+                cleaned_text = captured_text.replace('\u202D', '')
+                cleaned_text = cleaned_text.replace('\u2212', '-')
                 
-                if "Unoccupied oasis" in captured_text:
-                    coords_match = re.search(r'\(([^)]+)\)', captured_text)
+                # Check if field is an oasis
+                if "Unoccupied oasis" in cleaned_text:
+                    # get Coordinates from title
+                    coords_match = re.search(r'\(([^)]+)\)', cleaned_text)
                     coordinates = coords_match.group(1) if coords_match else "Onbekend"
                     
                     try:
@@ -212,18 +226,47 @@ def create_title_bar(parent, title):
     title_label.grid(row=0, column=0, padx=5, pady=5)
     return title_bar
 
-def raid_hero(troops_values, MapID):
-    # Open simulation page for chosen oasis
-    calculate_resourcesVSheath(troops_values, MapID)
-    
-    # Click on send troops button in simulation page
-    try:
-        sendTroops_button = driver.find_element(By.XPATH, '//*[@id="sendTroops"]')
-        sendTroops_button.click()
-        time.sleep(1)
-    except:
-        print("Raid Hero function: 'Send troops' button in simulation failed")
+def raid_hero(coordinates):  
+    # Open rally point page on driver
+    driver.get(f'{TRAVIAN_URL}build.php?id=39&gid=16&tt=2')
+    time.sleep(1)
 
+    # Add Hero as unit
+    try:
+        hero_quantity = driver.find_element(By.XPATH, '//*[@id="troops"]/tbody/tr[3]/td[4]/input')
+        hero_quantity.send_keys("1")
+    except:
+        print("Raid Hero function: Adding hero failed")
+        return
+
+    #split Coordinates
+    X_value, Y_Value = coordinates.split('|')
+
+    # Add X coordinate
+    try:
+        X_Coordinates = driver.find_element(By.XPATH, '//*[@id="xCoordInput"]')
+        X_Coordinates.send_keys(X_value)
+    except:
+        print("Raid Hero function: Adding X coordinate failed")
+        return
+
+    # Add X coordinate
+    try:
+        X_Coordinates = driver.find_element(By.XPATH, '//*[@id="yCoordInput"]')
+        X_Coordinates.send_keys(Y_Value)
+        time.sleep(0.5)
+    except:
+        print("Raid Hero function: Adding Y coordinate failed")
+        return
+
+    try:
+        # Select 'Attack: Raid'
+        Raid_checkbox = driver.find_element(By.XPATH, '//*[@id="build"]/div/form/div[2]/label[3]/input')
+        Raid_checkbox.click()
+    except:
+        print(f"Raid Hero function: Raid checkbox failed")
+        return
+    
     # Click on the send button in troop overview
     try:
         send_button = driver.find_element(By.XPATH, '//*[@id="ok"]')
@@ -231,23 +274,24 @@ def raid_hero(troops_values, MapID):
         time.sleep(1)
     except:
         print("Raid Hero function: send button in troop overview failed")
+        return
 
     # Click on the confirm button
     try:
         Confirm_button = driver.find_element(By.XPATH, '/html/body/div[3]/div[3]/div[3]/div[2]/div/div[3]/div/form/div[1]/button[3]')
         Confirm_button.click()
-        time.sleep(1)
     except:
         print("Raid Hero function: Confirm button in attack overview failed")
+        return
 
-def show_confirmation_popup(Coordinates, troops, map_id):
+def show_confirmation_popup(Coordinates):
     popup = tk.Toplevel()
     popup.title("Confirm Action")
 
     tk.Label(popup, text=f"Send Hero to oasis {Coordinates}?", font=("Arial", 12)).pack(pady=10)
     
     def confirm_action():
-        raid_hero(troops, map_id)
+        raid_hero(Coordinates)
         popup.destroy()
 
     confirm_button = tk.Button(popup, text="Confirm", command=confirm_action)
@@ -294,7 +338,7 @@ def update_oasis_gui(list_frame):
 
                 # Toon coördinaten
                 text = f"{coordinates}"
-                url = f"{MAP_URL}{map_id}"
+                url = f"{TRAVIAN_URL}position_details.php?mapId={map_id}"
                 link = tk.Label(row_frame, text=text, fg="blue", cursor="hand2", width=11, anchor="w")
                 link.pack(side="left", fill="x", padx=5, pady=2)
                 link.bind("<Button-1>", lambda e, url=url: webbrowser.open(url))
@@ -310,7 +354,7 @@ def update_oasis_gui(list_frame):
                 else:
                     link = tk.Label(row_frame, text=troops, fg="blue", cursor="hand2", width=40, anchor="w")
                     link.pack(side="left", fill="x", padx=5, pady=2)
-                    link.bind("<Button-1>", lambda e, c = coordinates, t=troops, m=map_id: show_confirmation_popup(c, t, m))
+                    link.bind("<Button-1>", lambda e, c = coordinates: show_confirmation_popup(c))
 
                 # Toon Bounty vs heath
                 troops_label = tk.Label(row_frame, text=bountyVSHeath, width=10, anchor="w")
@@ -531,15 +575,20 @@ def calculate_resourcesVSheath(troops_values, MapId):
 
 def Edit_raidList(troops_values, MapId):
     try:
-        editRaidList_button = driver.find_element(By.XPATH, '/html/body/div[2]/div/div/div/div/form/div[5]/div/div[1]/div[2]/div[2]')
-        editRaidList_button.click()
-        time.sleep(1)
+        # Click on link to open edit raid list
+        links = driver.find_elements(By.XPATH, '//*[@id="crud-raidlist-button"]')
+        for link in links: # find correct link because ID is used more then onces
+            link_tekst = driver.execute_script("return arguments[0].textContent;", link)
+            if 'Edit' in link_tekst:
+                link.click()
+                time.sleep(0.5)
+                break
         try:
             # Deactivate oasis in raid list if animals are present
             Deactivate_checkbox = driver.find_element(By.XPATH, '//*[@id="farmListTargetForm"]/div[4]/label/input')
             if Deactivate_checkbox.is_selected() == (troops_values == "none"):
                 Deactivate_checkbox.click()
-                time.sleep(1)
+                time.sleep(0.5)
             try:
                 # Click on Edit farm list ('type of farmlist')
                 save_button = driver.find_element(By.XPATH, '//*[@id="farmListTargetForm"]/div[5]/button[3]')
@@ -560,9 +609,10 @@ def check_oasis():
         for row in oases:
             if row:
                 map_id = row['MapID']
-                url = f"{MAP_URL}{map_id}"
+                old_troops = row['Troops']
+                url = f"{TRAVIAN_URL}position_details.php?mapId={map_id}"
                 driver.get(url)
-                time.sleep(1)
+                time.sleep(0.5)
 
                 try:
                     troop_rows = driver.find_elements(By.XPATH, '//*[@id="troop_info"]/tbody/tr')
@@ -573,19 +623,20 @@ def check_oasis():
                         if "simulate raid" in troop_text:
                             break
                         troops_values.append(troop_text)
-                    troops_value = ", ".join(troops_values)
-
-                    Edit_raidList(troops_value, map_id)
-                    BountyVSHeath = calculate_resourcesVSheath(troops_value, map_id)
+                    troops_value = ", ".join(troops_values)           
 
                 except Exception as e:
                     troops_value = None
                     BountyVSHeath = 0
                     print(f"Error fetching troop info: {e}")
 
-                row['Troops'] = troops_value if troops_value else "No data"
-                row["Bounty/HP"] = BountyVSHeath
+                if (old_troops == 'None') != (troops_value == 'None'):
+                    Edit_raidList(troops_value, map_id)
 
+                if old_troops != troops_value:
+                        BountyVSHeath = calculate_resourcesVSheath(troops_value, map_id)  
+                        row["Bounty/HP"] = BountyVSHeath
+                        row['Troops'] = troops_value if troops_value else "No data"
 
         with open("gevonden_oases.csv", "w", newline='', encoding='utf-8') as file:
             writer = csv.DictWriter(file, fieldnames=oases[0].keys())
@@ -596,7 +647,9 @@ def check_oasis():
 
 def check_Oasis_after(root):
     check_oasis()
-    root.after(600000, check_Oasis_after, root)
+
+    timeUntillNextCheck = random.randint(480000, 600000)
+    root.after(timeUntillNextCheck, check_Oasis_after, root)
 
 def main():     
     initialise() 
