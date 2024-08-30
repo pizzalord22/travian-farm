@@ -40,28 +40,6 @@ STARTVILLAGE_MAPID = 120553
 USERNAME = "b.phylipsen@gmail.com"
 PASSWORD = "MarkHoudtvanPizza"
 
-CHECK_IDS = [
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-    391, 392, 393, 394, 395, 396, 397, 398, 399, 400,
-    401, 402, 403, 404, 405, 406, 407, 408, 409, 410,
-    411, 793, 794, 795, 796, 797, 798, 799, 800, 801,
-    802, 803, 804, 805, 806, 807, 808, 809, 810, 811,
-    1194, 1195, 1196, 1197, 1198, 1199, 1200, 1201,
-    1202, 1203, 1204, 1205, 1206, 1207, 1208, 1209,
-    1210, 1211, 1212, 1595, 1596, 1597, 1598, 1599,
-    1600, 1601, 1602, 1603, 1604, 1605, 1606, 1607,
-    1608, 1609, 1610, 1611, 1612, 1613, 1997, 1998,
-    1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-    2007, 2008, 2009, 2010, 2011, 2012, 2013, 2398,
-    2399, 2400, 2401, 2402, 2403, 2404, 2405, 2406,
-    2407, 2408, 2409, 2410, 2411, 2412, 2413, 2414,
-    2800, 2801, 2802, 2803, 2804, 2805, 2806, 2807,
-    2808, 2809, 2810, 2811, 2812, 2813, 3202, 3203,
-    3204, 3205, 3206, 3207, 3208, 3209, 3210, 3211,
-    3212, 3213, 3610, 3611, 3612, 3613, 4009, 4010,
-    4011
-]
-
 # Set up Chrome options (optional: can configure headless mode or other settings)
 chrome_options = Options()
 # chrome_options.add_argument("--start-maximized")  # Open Chrome maximized
@@ -109,9 +87,12 @@ def Auto_raidList(root):
         # Open rally point page on driver
         driver.get(f'{TRAVIAN_URL}build.php?id=39&gid=16&tt=99')
         time.sleep(1)    
-        # Press the start farm list button
-        submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
-        submit_button.click()
+        try:
+            # Press the start farm list button
+            submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
+            submit_button.click()
+        except:
+            print("Close Start Raid button could not be found") # path has changed when my plus account expired, so check path in new game
         # Create new random time for next raid
         close_newRaidTime = time.time() + random.randint(raid_min_time_close, raid_max_time_close)
         raid_frames[0](close_newRaidTime)
@@ -121,9 +102,12 @@ def Auto_raidList(root):
         # Open rally point page on driver
         driver.get(f'{TRAVIAN_URL}build.php?id=39&gid=16&tt=99')
         time.sleep(1)  
-        # Press the start farm list button
-        submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
-        submit_button.click()
+        try:
+            # Press the start farm list button
+            submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
+            submit_button.click()
+        except:
+            print("Mid Start Raid button could not be found") # path has changed when my plus account expired, so check path in new game
         # Create new random time for next raid
         mid_newRaidTime = time.time() + random.randint(raid_min_time_mid, raid_max_time_mid)
         raid_frames[1](mid_newRaidTime)
@@ -132,10 +116,13 @@ def Auto_raidList(root):
     if start_raidFar and far_newRaidTime < time.time():
         # Open rally point page on driver
         driver.get(f'{TRAVIAN_URL}build.php?id=39&gid=16&tt=99')
-        time.sleep(1)   
-        # Press the start farm list button
-        submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
-        submit_button.click()
+        time.sleep(1)  
+        try: 
+            # Press the start farm list button
+            submit_button = driver.find_element(By.XPATH, '//*[@id="rallyPointFarmList"]/div[2]/div[2]/div/div/button')
+            submit_button.click()
+        except:
+            print("Far Start Raid button could not be found") # path has changed when my plus account expired, so check path in new game
         # Create new random time for next raid
         far_newRaidTime = time.time() + random.randint(raid_min_time_far, raid_max_time_far)
         raid_frames[2](far_newRaidTime)
@@ -143,15 +130,12 @@ def Auto_raidList(root):
 
     root.after(1000, Auto_raidList, root)
 
-def index_oasis():
+def index_oasis(x_offset, y_offset):
     try:
-        with open("gevonden_oases.csv", "r", newline='', encoding='utf-8') as file:
-            if file.read().strip(): #check if CSV is not empty, then the index has already run
-                print("CSV-file not empty. Index can be skipped.")
-                return
-    except FileNotFoundError:
+        with open("gevonden_oases.csv", "w", newline='', encoding='utf-8') as file:
+           print("CSV-file has been cleared.")
+    except:
         print("Opening CSV file failure")
-        pass
 
     # create headers
     with open("gevonden_oases.csv", mode='w', newline='', encoding='utf-8') as file:
@@ -160,10 +144,9 @@ def index_oasis():
 
     oases = []
 
-    for check_id in CHECK_IDS: #Check all fields with max 10 distance
-        for offset in [-check_id, check_id]:
-            # Open field url
-            map_id = STARTVILLAGE_MAPID + offset
+    for x in range(-int(x_offset.get()), int(x_offset.get()) + 1):
+        for y in range(-int(y_offset.get()), int(y_offset.get()) + 1):
+            map_id = STARTVILLAGE_MAPID + x + y * 401
             url = f"{TRAVIAN_URL}position_details.php?mapId={map_id}"
             driver.get(url)
             time.sleep(1)
@@ -203,6 +186,8 @@ def index_oasis():
             writer.writerow(oasis)
 
     print("Oases zijn geïndexeerd en opgeslagen in gevonden_oases.csv.")
+
+    check_oasis()
 
 def setup_gui():
     root = tk.Tk()
@@ -380,6 +365,22 @@ def oasis_gui(parent):
 
     update_oasis_gui(list_frame)
 
+    # Maak invoervelden voor X en Y offsets
+    input_frame = tk.Frame(oasis_list_frame)
+    input_frame.grid(row=2, column=0, sticky="ew", pady=(5, 10))
+
+    # Start button to trigger the index_oasis function
+    start_button = tk.Button(input_frame, text="Start Index oasises", command=lambda: index_oasis(x_offset_entry, y_offset_entry))
+    start_button.pack(side="left", padx=(5, 0))
+
+    tk.Label(input_frame, text="X Offset:").pack(side="left", padx=(0, 5))
+    x_offset_entry = tk.Entry(input_frame, width=5)
+    x_offset_entry.pack(side="left", padx=(0, 15))
+
+    tk.Label(input_frame, text="Y Offset:").pack(side="left", padx=(0, 5))
+    y_offset_entry = tk.Entry(input_frame, width=5)
+    y_offset_entry.pack(side="left", padx=(0, 15))
+
     def refresh():
         update_oasis_gui(list_frame)
         parent.after(60000, refresh)
@@ -510,68 +511,70 @@ def initialise():
     raid_min_time_close =  raid_min_time_mid =  raid_min_time_far  = 360 
     raid_max_time_close =raid_max_time_mid = raid_max_time_far = 480
 
-def calculate_resourcesVSheath(troops_values, MapId):
+def calculate_resourcesVSheath(MapId):
     # Open de simulation battle page for this Oasis
-    if not(troops_values == "none"):
-        driver.get(f"https://ts8.x1.europe.travian.com/build.php?id=39&tt=3&screen=combatSimulator&kid={MapId}")
-        time.sleep(1)
+    driver.get(f"https://ts8.x1.europe.travian.com/build.php?id=39&tt=3&screen=combatSimulator&kid={MapId}")
+    time.sleep(1)
 
-        try:
-            # set all field on 0
-            for i in range(1, 11):
-                unit_field = driver.find_element(By.XPATH, f'//*[@id="combatSimulatorForm"]/div[2]/div[3]/div[3]/table/tbody/tr[2]/td[{i}]/input')
-                driver.execute_script("arguments[0].value = '';", unit_field)
-                unit_field.send_keys("0")
-        except:
-            print(f"Simulation fight: Troop field failure at {MapId}")
-
-        try:
-            # Make sure checkbox hero is on
-            hero_checkbox = driver.find_element(By.XPATH, '//*[@id="combatSimulatorForm"]/div[2]/div[3]/div[3]/table/tbody/tr[2]/td[11]/input')
-            if not hero_checkbox.is_selected():
-                hero_checkbox.click()
-        except:
-            print(f"Simulation fight: Cannot find state or click on hero checkbox @ {MapId}, state: {hero_checkbox.is_selected():}")
-
-        try:
-            # start simulation by clicking on the button
-            simulate_button = driver.find_element(By.XPATH, '//*[@id="simulate"]')
-            simulate_button.click()
-            time.sleep(2)
-        except:
-            print(f"Simulation fight: Simulate button failure {MapId}")
-        
-        try:
-            healthLoss_field = driver.find_element(By.XPATH, '//*[@id="combatSimulator"]/div[2]/div[2]/div[3]/table/tbody/tr/td')
-            healthLoss_tekst = healthLoss_field.text
-            if 'might die' in healthLoss_tekst: # The hero survives with such low health that they might die in a real battle!
-                heath_lost = 100
-                new_health = 0 # To make bountyVSHeath 0
-            else:
-                parts = healthLoss_tekst.split() # 'Hero's health lowered from [initial_heath] to [new_health]'
-                initial_health = int(parts[4])
-                new_health = int(parts[6])
-                heath_lost = initial_health - new_health
-        except: # Als hero geen health schade heeft opgelopen
-            heath_lost = 1 # Om te voorkomen dat er een deling door 0 wordt gedaan
-            new_health = 100
-
-        try:
-            # Check wood resource bounty
-            resource_field = driver.find_element(By.XPATH, '//*[@id="combatSimulator"]/div[2]/div[4]/div[2]/div/div[1]')
-            single_Resourcebounty = int(resource_field.text)
-            resource_bounty = single_Resourcebounty*4 #Bounty of all four resources is always the same
-        except:
-            resource_bounty = 0
-
-        if new_health > 1: #We don't want the hero to die
-            BountyVSheath = round(resource_bounty/heath_lost)
-        else:
-            BountyVSheath = 0
-
-        return BountyVSheath
-    else:
+    try:
+        # set all field on 0
+        for i in range(1, 11):
+            unit_field = driver.find_element(By.XPATH, f'//*[@id="combatSimulatorForm"]/div[2]/div[3]/div[3]/table/tbody/tr[2]/td[{i}]/input')
+            driver.execute_script("arguments[0].value = '';", unit_field)
+            unit_field.send_keys("0")
+    except:
+        print(f"Simulation fight: Troop field failure at {MapId}")
         return 0
+
+    try:
+        # Make sure checkbox hero is on
+        hero_checkbox = driver.find_element(By.XPATH, '//*[@id="combatSimulatorForm"]/div[2]/div[3]/div[3]/table/tbody/tr[2]/td[11]/input')
+        if not hero_checkbox.is_selected():
+            hero_checkbox.click()
+    except:
+        print(f"Simulation fight: Cannot find state or click on hero checkbox @ {MapId}, state: {hero_checkbox.is_selected():}")
+        return 0
+
+    try:
+        # start simulation by clicking on the button
+        simulate_button = driver.find_element(By.XPATH, '//*[@id="simulate"]')
+        simulate_button.click()
+        time.sleep(2)
+    except:
+        print(f"Simulation fight: Simulate button failure {MapId}")
+        return 0
+    
+    HeroSurvival = driver.find_element(By.XPATH, '//*[@id="combatSimulator"]/div[2]/div[2]/div[2]/table/tbody/tr[3]/td[11]')
+    if HeroSurvival.text == "−1":
+        return 0
+
+    try:
+        healthLoss_field = driver.find_element(By.XPATH, '//*[@id="combatSimulator"]/div[2]/div[2]/div[3]/table/tbody/tr/td')
+        healthLoss_tekst = healthLoss_field.text
+        if 'might die' in healthLoss_tekst: # The hero survives with such low health that they might die in a real battle!
+            heath_lost = 100
+            new_health = 0 # To make bountyVSHeath 0
+        else:
+            parts = healthLoss_tekst.split() # 'Hero's health lowered from [initial_heath] to [new_health]'
+            initial_health = int(parts[4])
+            new_health = int(parts[6])
+            heath_lost = initial_health - new_health
+    except: # Als hero geen health schade heeft opgelopen
+        heath_lost = 1
+
+    try:
+        # Check wood resource bounty
+        resource_field = driver.find_element(By.XPATH, '//*[@id="combatSimulator"]/div[2]/div[4]/div[2]/div/div[1]')
+        single_Resourcebounty = int(resource_field.text)
+        resource_bounty = single_Resourcebounty*4 #Bounty of all four resources is always the same
+    except:
+        return 0
+
+    if heath_lost == 0:
+        return 0
+    else:
+        BountyVSheath = round(resource_bounty/heath_lost)
+        return BountyVSheath
 
 def Edit_raidList(troops_values, MapId):
     try:
@@ -602,39 +605,48 @@ def Edit_raidList(troops_values, MapId):
         print(f"Edit raid list @{MapId}: Open edit farm list failed")
 
 def check_oasis():
+    # Open CSV file
     with open("gevonden_oases.csv", "r", newline='', encoding='utf-8') as file:
         reader = csv.DictReader(file)
         oases = list(reader)
+        if len(oases) == 0:
+            return
 
+    # Check all oasises in CSV
         for row in oases:
             if row:
                 map_id = row['MapID']
-                old_troops = row['Troops']
-                url = f"{TRAVIAN_URL}position_details.php?mapId={map_id}"
+                old_troops = row['Troops'] # Save troops that were in oasis the last time to check if anything has changed
+                url = f"{TRAVIAN_URL}position_details.php?mapId={map_id}" # Open oasis URL
                 driver.get(url)
                 time.sleep(0.5)
 
                 try:
-                    troop_rows = driver.find_elements(By.XPATH, '//*[@id="troop_info"]/tbody/tr')
+                    troop_rows = driver.find_elements(By.XPATH, '//*[@id="troop_info"]/tbody/tr') # Find troop info fields and combine in list
                     troops_values = []
                     
                     for troop_row in troop_rows:
                         troop_text = troop_row.text
-                        if "simulate raid" in troop_text:
+                        if "simulate raid" in troop_text: # As soon as 'simulate raid' has been found the troops info is over
                             break
                         troops_values.append(troop_text)
-                    troops_value = ", ".join(troops_values)           
+                    troops_value = ", ".join(troops_values) # If multiple types of troops are in the oasis combine these in one string           
 
                 except Exception as e:
                     troops_value = None
                     BountyVSHeath = 0
                     print(f"Error fetching troop info: {e}")
 
-                if (old_troops == 'None') != (troops_value == 'None'):
+                # Check if raid list needs to be (de-)activated, because troops have spawned or cleared
+                if (old_troops == 'none') != (troops_value == 'none'): 
                     Edit_raidList(troops_value, map_id)
 
+                # Check if the troops have changed, then the simulation neeeds to be done again, and they need to be changed in the CSV
                 if old_troops != troops_value:
-                        BountyVSHeath = calculate_resourcesVSheath(troops_value, map_id)  
+                        if troops_value != 'none':
+                            BountyVSHeath = calculate_resourcesVSheath(map_id)
+                        else:
+                            BountyVSHeath = 0
                         row["Bounty/HP"] = BountyVSHeath
                         row['Troops'] = troops_value if troops_value else "No data"
 
@@ -648,13 +660,12 @@ def check_oasis():
 def check_Oasis_after(root):
     check_oasis()
 
-    timeUntillNextCheck = random.randint(480000, 600000)
+    timeUntillNextCheck = random.randint(480000, 600000) # Randomly select a time to update oasis to make it more human-like
     root.after(timeUntillNextCheck, check_Oasis_after, root)
 
 def main():     
     initialise() 
     login(USERNAME, PASSWORD)
-    index_oasis()
     check_oasis()
 
     root = setup_gui()
