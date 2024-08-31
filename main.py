@@ -33,12 +33,13 @@ from webdriver_manager.chrome import ChromeDriverManager  # For automatic WebDri
 from selenium.webdriver.chrome.options import Options  # Use options to configure Chrome WebDriver
 from tkinter import ttk
 
-# Configuratie
-TRAVIAN_URL = "https://ts8.x1.europe.travian.com/"
-RALLYPOINT_URL = "https://ts8.x1.europe.travian.com/build.php?id=39&gid=16"
-STARTVILLAGE_MAPID = 120553
-USERNAME = "b.phylipsen@gmail.com"
-PASSWORD = "MarkHoudtvanPizza"
+with open("Config.csv", "r", newline='', encoding='utf-8') as file:
+    reader = csv.DictReader(file)
+    config = next(reader)
+    travian_URL = config['Travian_URL']
+    startVillage_MapID = int(config['StartVillage_MapID'])
+    username = config['Username']
+    password = config['Password']
 
 # Set up Chrome options (optional: can configure headless mode or other settings)
 chrome_options = Options()
@@ -56,7 +57,7 @@ driver.maximize_window()
 driver.implicitly_wait(10)
 
 def login(username, password):
-    driver.get(TRAVIAN_URL)
+    driver.get(travian_URL)
     time.sleep(1)
 
     # Step 3: Enter username using the provided XPath
@@ -85,7 +86,7 @@ def Auto_raidList(root):
 
     if start_raidClose and close_newRaidTime < time.time():
         # Open rally point page on driver
-        driver.get(f'{TRAVIAN_URL}build.php?id=39&gid=16&tt=99')
+        driver.get(f'{travian_URL}build.php?id=39&gid=16&tt=99')
         time.sleep(1)    
         try:
             # Press the start farm list button
@@ -100,7 +101,7 @@ def Auto_raidList(root):
 
     if start_raidMid and mid_newRaidTime < time.time():
         # Open rally point page on driver
-        driver.get(f'{TRAVIAN_URL}build.php?id=39&gid=16&tt=99')
+        driver.get(f'{travian_URL}build.php?id=39&gid=16&tt=99')
         time.sleep(1)  
         try:
             # Press the start farm list button
@@ -115,7 +116,7 @@ def Auto_raidList(root):
 
     if start_raidFar and far_newRaidTime < time.time():
         # Open rally point page on driver
-        driver.get(f'{TRAVIAN_URL}build.php?id=39&gid=16&tt=99')
+        driver.get(f'{travian_URL}build.php?id=39&gid=16&tt=99')
         time.sleep(1)  
         try: 
             # Press the start farm list button
@@ -130,7 +131,7 @@ def Auto_raidList(root):
 
     root.after(1000, Auto_raidList, root)
 
-def index_oasis(x_offset, y_offset):
+def index_fields(x_offset, y_offset, oasis_frame, village_frame):
     try:
         with open("gevonden_oases.csv", "w", newline='', encoding='utf-8') as file:
            print("CSV-file has been cleared.")
@@ -142,12 +143,24 @@ def index_oasis(x_offset, y_offset):
         writer = csv.writer(file)
         writer.writerow(["MapID", "Coordinates", "Distance", "Troops", "Bounty/HP"])
 
+    try:
+        with open("villages.csv", "w", newline='', encoding='utf-8') as file:
+           print("CSV-file has been cleared.")
+    except:
+        print("Opening CSV file failure")
+
+    # create headers
+    with open("villages.csv", mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(["MapID", "Coordinates", "Distance", "Population", "Player",  "Alliance", "Tribe", "RaidList"])
+
     oases = []
+    villages = []
 
     for x in range(-int(x_offset.get()), int(x_offset.get()) + 1):
         for y in range(-int(y_offset.get()), int(y_offset.get()) + 1):
-            map_id = STARTVILLAGE_MAPID + x + y * 401
-            url = f"{TRAVIAN_URL}position_details.php?mapId={map_id}"
+            map_id = startVillage_MapID + x + y * 401
+            url = f"{travian_URL}position_details.php?mapId={map_id}"
             driver.get(url)
             time.sleep(1)
 
@@ -174,18 +187,78 @@ def index_oasis(x_offset, y_offset):
 
                     print(f"Onbezette oase gevonden bij: {map_id} met coördinaten {coordinates} en afstand {distance}")
                     oases.append((map_id, coordinates, distance))
+                elif not("Wilderness" in cleaned_text or "Abandoned" in cleaned_text or "water" in cleaned_text):
+                    # get Coordinates from title
+                    cleaned_text = re.sub(r'[^\x00-\x7F]+', '', cleaned_text)
+                    coords_match = re.search(r'([+-]?\d+)\s*[\|,]\s*([+-]?\d+)', cleaned_text)
+                    coordinates = f"{coords_match.group(1)}|{coords_match.group(2)}"
+
+                    # get distance
+                    try: 
+                        distance_element = driver.find_element(By.XPATH, '//*[@id="village_info"]/tbody/tr[5]/td')
+                        distance_text = distance_element.text.strip()
+                        distance_match = re.match(r'(\d+(\.\d+)?) fields', distance_text)
+                        distance = float(distance_match.group(1)) if distance_match else float('inf')
+                    except Exception:
+                        print("distance not found")
+                        return
+
+                    # get population
+                    try: 
+                        population_element = driver.find_element(By.XPATH, '//*[@id="village_info"]/tbody/tr[4]/td')
+                        population = population_element.text.strip()
+                    except Exception:
+                        print ("Population not found")
+                        return
+
+                    # get Player
+                    try: 
+                        player_element = driver.find_element(By.XPATH, '//*[@id="village_info"]/tbody/tr[3]/td')
+                        Player = player_element.text.strip()
+                    except Exception:
+                        print ("Population not found")
+                        return
+
+                    # get Alliance
+                    try: 
+                        alliance_element = driver.find_element(By.XPATH, '//*[@id="village_info"]/tbody/tr[2]/td')
+                        Allaince = alliance_element.text.strip()
+                    except Exception:
+                        print ("Population not found")
+                        return
+
+                    # get Tribe
+                    try:
+                        tribe_element = driver.find_element(By.XPATH, '//*[@id="village_info"]/tbody/tr[1]/td')
+                        Tribe = tribe_element.text.strip()
+                    except Exception:
+                        print ("Population not found")
+                        return
+
+                    if y != 0 and x !=0:    
+                        villages.append((map_id, coordinates, distance, population, Player, Allaince, Tribe))
+
             except Exception as e:
                 print(f"Fout bij indexering van oase op {url}: {e}")
 
-    # Sorteer de oases op basis van afstand
+    # Sorteer de oases en villages op basis van afstand
     oases.sort(key=lambda x: x[2])
+    villages.sort(key=lambda x: x[2])
 
     with open("gevonden_oases.csv", mode='a', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         for oasis in oases:
             writer.writerow(oasis)
 
-    print("Oases zijn geïndexeerd en opgeslagen in gevonden_oases.csv.")
+    with open("villages.csv", mode='a', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        for village in villages:
+            writer.writerow(village)
+
+    update_oasis_gui(oasis_frame)
+    update_villages_gui(village_frame)
+
+    print("Oases and villages zijn geïndexeerd en opgeslagen in CSVs.")
 
     check_oasis()
 
@@ -213,7 +286,7 @@ def create_title_bar(parent, title):
 
 def raid_hero(coordinates):  
     # Open rally point page on driver
-    driver.get(f'{TRAVIAN_URL}build.php?id=39&gid=16&tt=2')
+    driver.get(f'{travian_URL}build.php?id=39&gid=16&tt=2')
     time.sleep(1)
 
     # Add Hero as unit
@@ -294,7 +367,7 @@ def heroTraveling():
 def update_oasis_gui(list_frame):
     # Verwijder alle bestaande widgets uit het list_frame
     for widget in list_frame.winfo_children():
-        widget.destroy()
+        widget.pack_forget()
 
     try:
         with open("gevonden_oases.csv", "r", newline='', encoding='utf-8') as file:
@@ -323,7 +396,7 @@ def update_oasis_gui(list_frame):
 
                 # Toon coördinaten
                 text = f"{coordinates}"
-                url = f"{TRAVIAN_URL}position_details.php?mapId={map_id}"
+                url = f"{travian_URL}position_details.php?mapId={map_id}"
                 link = tk.Label(row_frame, text=text, fg="blue", cursor="hand2", width=11, anchor="w")
                 link.pack(side="left", fill="x", padx=5, pady=2)
                 link.bind("<Button-1>", lambda e, url=url: webbrowser.open(url))
@@ -348,30 +421,111 @@ def update_oasis_gui(list_frame):
     except FileNotFoundError:
         print("CSV file not found.")
 
+def update_villages_gui(list_frame):
+    # Verwijder alle bestaande widgets uit het list_frame
+    for widget in list_frame.winfo_children():
+        widget.pack_forget()
+
+    try:
+        with open("villages.csv", "r", newline='', encoding='utf-8') as file:
+            reader = csv.DictReader(file)
+            oases = list(reader)
+            
+            # Maak headers
+            header_frame = tk.Frame(list_frame)
+            header_frame.pack(fill="x")
+
+            tk.Label(header_frame, text="Coordinates", width=11, font=("Arial", 9, "bold"), anchor="w").pack(side="left", padx=5, pady=5)
+            tk.Label(header_frame, text="Distance", width=10, font=("Arial", 9, "bold"), anchor="w").pack(side="left", padx=5, pady=5)
+            tk.Label(header_frame, text="Population", width=10, font=("Arial", 9, "bold"), anchor="w").pack(side="left", padx=5, pady=5)
+            tk.Label(header_frame, text="Player", width=10, font=("Arial", 9, "bold"), anchor="w").pack(side="left", padx=5, pady=5)
+            tk.Label(header_frame, text="Alliance", width=10, font=("Arial", 9, "bold"), anchor="w").pack(side="left", padx=5, pady=5)
+            tk.Label(header_frame, text="Tribe", width=10, font=("Arial", 9, "bold"), anchor="w").pack(side="left", padx=5, pady=5)
+
+            for row in oases:
+                map_id = row['MapID']
+                coordinates = row['Coordinates']
+                distance = row['Distance']
+                Population = row['Population']
+                Player = row['Player']
+                Alliance = row['Alliance']
+                Tribe = row['Tribe']
+
+                # Maak een frame voor elke rij
+                row_frame = tk.Frame(list_frame)
+                row_frame.pack(fill="x")
+
+                # Toon coördinaten
+                text = f"{coordinates}"
+                url = f"{travian_URL}position_details.php?mapId={map_id}"
+                link = tk.Label(row_frame, text=text, fg="blue", cursor="hand2", width=11, anchor="w")
+                link.pack(side="left", fill="x", padx=5, pady=2)
+                link.bind("<Button-1>", lambda e, url=url: webbrowser.open(url))
+
+                # Toon afstand
+                distance_label = tk.Label(row_frame, text=distance, width=10, anchor="w")
+                distance_label.pack(side="left", fill="x", padx=5, pady=2)
+
+                # Toon Population
+                troops_label = tk.Label(row_frame, text=Population, width=10, anchor="w")
+                troops_label.pack(side="left", fill="x", padx=5, pady=2)
+
+                # Toon Player name
+                troops_label = tk.Label(row_frame, text=Player, width=10, anchor="w")
+                troops_label.pack(side="left", fill="x", padx=5, pady=2)
+
+                # Toon Alliantie
+                troops_label = tk.Label(row_frame, text=Alliance, width=10, anchor="w")
+                troops_label.pack(side="left", fill="x", padx=5, pady=2)
+
+                # Toon Tribe
+                troops_label = tk.Label(row_frame, text=Tribe, width=10, anchor="w")
+                troops_label.pack(side="left", fill="x", padx=5, pady=2)
+
+    except FileNotFoundError:
+        print("CSV file not found.")
+
 def oasis_gui(parent):
     oasis_list_frame = tk.Frame(parent, padx=10, pady=10, borderwidth=2, relief="groove")
     oasis_list_frame.grid(row=0, column=1, rowspan=3, padx=10, pady=10, sticky="ns")
 
     title_bar = tk.Frame(oasis_list_frame, bg="red", height=1)
     title_bar.grid(row=0, column=0, sticky="ew")
-    title_label = tk.Label(title_bar, text="Oases list", bg="red", fg="white", font=("Arial", 10, "bold"), height=1)
+    title_label = tk.Label(title_bar, text="Oases/Villages list", bg="red", fg="white", font=("Arial", 10, "bold"), height=1)
     title_label.grid(row=0, column=0, padx=2, pady=2)
 
-    list_frame = tk.Frame(oasis_list_frame)
-    list_frame.grid(row=1, column=0, sticky="nsew")
+    # Maak twee frames voor Oases en Villages
+    oasis_frame = tk.Frame(oasis_list_frame)
+    village_frame = tk.Frame(oasis_list_frame)
+    oasis_frame.grid(row=1, column=0, sticky="nsew")
+    village_frame.grid(row=1, column=0, sticky="nsew")
 
     oasis_list_frame.grid_rowconfigure(1, weight=1)
     oasis_list_frame.grid_columnconfigure(0, weight=1)
 
-    update_oasis_gui(list_frame)
+    # Initialiseer de Oasis GUI
+    update_oasis_gui(oasis_frame)
+    update_villages_gui(village_frame)
 
-    # Maak invoervelden voor X en Y offsets
     input_frame = tk.Frame(oasis_list_frame)
     input_frame.grid(row=2, column=0, sticky="ew", pady=(5, 10))
 
-    # Start button to trigger the index_oasis function
-    start_button = tk.Button(input_frame, text="Start Index oasises", command=lambda: index_oasis(x_offset_entry, y_offset_entry))
-    start_button.pack(side="left", padx=(5, 0))
+    global viewOasis
+    viewOasis = False
+
+    def switch_view():
+        global viewOasis
+        viewOasis = not viewOasis
+        # Wissel zichtbaarheid van de frames
+        if viewOasis:
+            oasis_frame.tkraise()  # Breng het Oasis frame naar voren
+            villageOasis_switch.config(text="Villages")
+        else:
+            village_frame.tkraise()  # Breng het Village frame naar voren
+            villageOasis_switch.config(text="Oases")
+
+    villageOasis_switch = tk.Button(input_frame, text="Villages", command= switch_view)
+    villageOasis_switch.pack(side="left", padx=(5, 200))
 
     tk.Label(input_frame, text="X Offset:").pack(side="left", padx=(0, 5))
     x_offset_entry = tk.Entry(input_frame, width=5)
@@ -381,11 +535,11 @@ def oasis_gui(parent):
     y_offset_entry = tk.Entry(input_frame, width=5)
     y_offset_entry.pack(side="left", padx=(0, 15))
 
-    def refresh():
-        update_oasis_gui(list_frame)
-        parent.after(60000, refresh)
+    # Start button to trigger the index_oasis function
+    start_button = tk.Button(input_frame, text="Start Index", command=lambda: index_fields(x_offset_entry, y_offset_entry, oasis_frame, village_frame))
+    start_button.pack(side="left", padx=(5, 0))
 
-    parent.after(60000, refresh)
+    oasis_frame.tkraise()
 
 def raid_gui(parent):
     global raid_min_time_close, raid_max_time_close, raid_min_time_mid, raid_max_time_mid, raid_min_time_far, raid_max_time_far
@@ -617,7 +771,7 @@ def check_oasis():
             if row:
                 map_id = row['MapID']
                 old_troops = row['Troops'] # Save troops that were in oasis the last time to check if anything has changed
-                url = f"{TRAVIAN_URL}position_details.php?mapId={map_id}" # Open oasis URL
+                url = f"{travian_URL}position_details.php?mapId={map_id}" # Open oasis URL
                 driver.get(url)
                 time.sleep(0.5)
 
@@ -665,7 +819,7 @@ def check_Oasis_after(root):
 
 def main():     
     initialise() 
-    login(USERNAME, PASSWORD)
+    login(username, password)
     check_oasis()
 
     root = setup_gui()
